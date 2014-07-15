@@ -10,6 +10,18 @@ A system for assessing the likely impact of social justice films.
 - `use` and `:refer :all` are discouraged, only use them where using namespace
   prefixes would clearly hurt readability
 
+## Environment
+
+We hit a couple of external APIs, so you're going to need keys for them. We 
+use [environ](https://github.com/weavejester/environ) for managing those. See
+the link for details on how to set that up, the keys that need to be present in
+the env map at runtime are:
+
+- **tw-api-key**
+- **tw-api-secret**
+- **tw-access-token**
+- **tw-access-secret**
+
 ## Development Notes
 
 - Film and actor tables have a `fetched` field. This is to defer calling our

@@ -14,7 +14,8 @@ CREATE TABLE credits (
   role TEXT, -- What the actor did, e.x. director, actor, writer
   FOREIGN KEY(actors_id) REFERENCES actor(id) ON DELETE CASCADE,
   FOREIGN KEY(films_id) REFERENCES films(id) ON DELETE CASCADE,
-  UNIQUE (actors_id, films_id, role) -- Can't be the director on one film twice
+  -- Can't be the director on one film twice
+  UNIQUE (actors_id, films_id, role) ON CONFLICT REPLACE 
 );
 
 CREATE TABLE films (

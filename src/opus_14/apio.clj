@@ -6,7 +6,7 @@
     (opus-14 [entities :as e]
              [utils :as utils])))
 
-(def loid (keyword ":last_insert_rowid()"))
+(def loid (keyword "last_insert_rowid()"))
 
 (defn maf-query
   "Queries myapifilms.com using params. Returns a delay of the first item in
@@ -103,7 +103,6 @@
                            (k/insert e/actors 
                              (k/values (dissoc actor :role))))
                          actor-id)]
-          (println "AID:" actor-id)
           (k/insert e/credits
             (k/values {:films_id film-id
                        :actors_id actor-id

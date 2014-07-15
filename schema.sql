@@ -11,7 +11,7 @@ CREATE TABLE actors (
 CREATE TABLE credits (
   actors_id INTEGER,
   films_id INTEGER,
-  role STRING, -- What the actor did, e.x. director, actor, writer
+  role TEXT, -- What the actor did, e.x. director, actor, writer
   FOREIGN KEY(actors_id) REFERENCES actor(id) ON DELETE CASCADE,
   FOREIGN KEY(films_id) REFERENCES films(id) ON DELETE CASCADE,
   UNIQUE (actors_id, films_id, role) -- Can't be the director on one film twice
@@ -20,5 +20,9 @@ CREATE TABLE credits (
 CREATE TABLE films (
   id INTEGER PRIMARY KEY,
   idIMDB TEXT NOT NULL,
-  fetched INTEGER DEFAULT 0
+  fetched INTEGER DEFAULT 0,
+  plot TEXT,         -- From myapifilms
+  title TEXT,        -- From myapifilms
+  urlPoster TEXT,    -- From myapifilms
+  year INTEGER       -- From myapifilms
 );

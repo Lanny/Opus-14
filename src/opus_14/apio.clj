@@ -1,12 +1,104 @@
 (ns opus-14.apio
   (:require
-    [clojure.data.json :as json]
+    (clojure [pprint :as pprint])
+    (clojure.data [json :as json])
     [org.httpkit.client :as http]
     (korma [core :as k])
+    (twitter [oauth :as oauth])
+    (twitter.api [restful :as twitter-rest])
+    (cemerick [url :refer (url)])
+    (net.cgrand [enlive-html :as enlive])
     (opus-14 [entities :as e]
-             [utils :as utils])))
+             [utils :as utils]))
+  (:use environ.core))
 
 (def loid (keyword "last_insert_rowid()"))
+
+(def tw-credentials 
+  (apply oauth/make-oauth-creds ((juxt :tw-api-key :tw-api-secret
+                                       :tw-access-token :tw-access-secret)
+                                 env)))
+
+;(def kek (twitter-rest/users-search :oauth-creds tw-credentials
+;                               :params {:q "Miss Representation"}))
+
+;(-> kek :body (get 1) pprint/pprint)
+
+(defn indiegogo-url->film-record
+  "Give me a indiegog url and I'll give you a record ready to be entered into
+  the `films` table. Validates the url and scrapes indiegogo.com so naturally
+  a lot of shit can happen here. Returns a [record err] vector. `record` is 
+  only meaningful if `err` is nil. If `err` is not nil it's a map with at least
+  :code and :reason keys, indicating a unique error and a human readable 
+  message respectively."
+  [campaign-url]
+  (let [u (url campaign-url)]
+    (cond
+      (not (= (utils/domain-of u) "indiegogo.com"))
+        [nil
+         {:code :wronghost
+          :reason "URLs must point to indiegogo.com"}]
+      (not (re-matches #"/projects/[^/ ]+/?" (:path u)))
+        [nil
+         {:code :wrongpath
+          :reason "URL didn't pick out a project page"}]
+      :else
+        ; IGG loads the base of the page (header and fundraising goals) first
+        ; and then uses XHR to load the seperate tabs (which also contain
+        ; info that we need). We'll start them both at once to cut down on
+        ; latency.
+        (let [base-resp (http/get (str u))
+              home-resp (http/get (str (url u "show_tab" "home"))
+                                  {:headers {"x-requested-with" 
+                                             "XMLHttpRequest"}})
+              err-resp (first (filter #(not= (:status @%) 200)
+                                      [base-resp home-resp]))]
+          (if-not (nil? err-resp)
+            (do (println @err-resp)
+            [nil {:code :http-error 
+                  :http-code (:status @err-resp)
+                  :reason (case (:status @err-resp)
+                            404 "Indiegogo campaign not found"
+                            500 "Indiegogo server error, retry maybe"
+                            (format "HTTP error %d" (:status @err-resp)))}])
+            (let [base-body (enlive/html-snippet (:body @base-resp))
+                  home-body (enlive/html-snippet (:body @home-resp))
+                  film-title (-> base-body
+                                 (enlive/select 
+                                   [[:meta (enlive/attr= :property "og:title")]])
+                                 first
+                                 :attrs
+                                 :content)
+                  crew (enlive/select home-body [:ul.i-team-members :.i-info])
+                  director-name (-> crew
+                                    first ; First crew member
+                                    (enlive/select [:.i-name])
+                                    first ; First name element (there's only one)
+                                    :content
+                                    first) ; First child (text) node
+                  ext-links (enlive/select home-body
+                                           [:.i-external-links :.link])
+                  fb-link (-> (utils/first-with-content "Facebook" ext-links)
+                              :attrs
+                              :href)
+                  tw-link (-> (utils/first-with-content "Twitter" ext-links)
+                              :attrs
+                              :href)
+                  ex-link (-> (utils/first-with-content "Website" ext-links)
+                              :attrs
+                              :href)]
+              [{:director_name director-name
+                :title film-title
+                :tw-link tw-link
+                :fb-link fb-link
+                :ex-link ex-link}
+               nil] ; We golang now
+              )
+            )
+          )
+      )
+    )
+  )
 
 (defn maf-query
   "Queries myapifilms.com using params. Returns a delay of the first item in
@@ -51,7 +143,7 @@
 (def maf-film-f2f
   {:idIMDB [identity :idIMDB]
    :plot [identity :plot]
-   :title [identity :title]
+   :title [identity :maf_title]
    :urlPoster [identity :urlPoster]
    :year [utils/parse-int :year]})
 
@@ -109,13 +201,6 @@
                        :role (:role actor)})))))
     film-id))
 
-(defn first-time-director?
-  "Given the name of a director, returns true if the director is credited as a
-  director two or more times, false otherwise"
-  [director-name]
-    (let [filmogs (:filmographies @(maf-actor-by-name director-name))
-          director-credits (some #(if (= (:section %) "Director") %) filmogs)]
-      (< (count (:filmography director-credits)) 2)))
 
 ;(first-time-director? "Jennifer Siebel Newsom")
 

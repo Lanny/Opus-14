@@ -1,4 +1,7 @@
-(ns opus-14.utils)
+(ns opus-14.utils
+  (:require
+    (clojure [string :as string])
+    [swiss.arrows :refer :all]))
 
 (defn parse-int [value]
   "Returns the integer represented in base 10 as a string argument, or nil if
@@ -22,3 +25,24 @@
           (if v
             [dest-key v]
             nil))))))
+
+(defn domain-of
+  "Takes a cemerick url object and return the first and second level domains.
+  (domain-of (url \"www.github.com\")) => \"github.com\""
+  [cemerick-url]
+  (-<>> cemerick-url
+        :host
+        (string/split <> #"\.")
+        (take-last 2)
+        (string/join ".")))
+
+(defn first-with-content
+  "Takes a sequence of enlive stlye XML nodes and returns the first where the
+  only content is the supplied `content` arg."
+  [content enlive-coll]
+  (first
+    (filter
+      (fn [node]
+        (and (= (count (:content node)) 1)
+             (= (first (:content node)) content)))
+      enlive-coll)))

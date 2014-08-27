@@ -93,13 +93,19 @@
                 :fb-link fb-link
                 :ex-link ex-link}
                nil] ; We golang now
-              )
-            )
-          )
-      )
-    )
-  )
+              ))))))
 
+(defn first-twitter-result?
+  "Returns true if the twitter screen name given is the first relevance search 
+  result for the search term given. Both arguments are strings."
+  [screen-name search-term]
+  (-> (twitter-rest/users-search :oauth-creds tw-credentials
+                                 :params {:q search-term})
+      :body
+      first
+      :screen_name
+      (= screen-name)))
+    
 (defn maf-query
   "Queries myapifilms.com using params. Returns a delay of the first item in
   the parsed JSON response."

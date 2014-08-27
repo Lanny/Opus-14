@@ -5,12 +5,6 @@
     (opus-14 [entities :as e]
              [utils :as utils])))
 
-(defn first-time-director?
-  "Given MAF director record, returns true if the director is credited as a
-  director two or more times, false otherwise"
-  [director-name]
-      (<  2)))
-
 (defn log7+1
   "Returns base 7 log of x plus one."
   [x]

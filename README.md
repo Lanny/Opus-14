@@ -21,6 +21,7 @@ the env map at runtime are:
 - **tw-api-secret**
 - **tw-access-token**
 - **tw-access-secret**
+- **klout-api-key**
 
 ## Development Notes
 

@@ -36,6 +36,7 @@ CREATE TABLE films (
   director_experience INTEGER,
   first_twitter_result INTEGER,
   first_facebook_result INTEGER,
+  klout_score INTEGER,
   intalinkage INTEGER,             -- Do film assets link to eachother?
   extralinkage INTEGER,            -- Do partners link back to film?
   has_trailer INTEGER,

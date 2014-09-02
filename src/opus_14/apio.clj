@@ -105,7 +105,32 @@
       first
       :screen_name
       (= screen-name)))
-    
+
+(defn twitter-screen-name->klout-score
+  "Take a twitter screen name and tries to retreive the corrosponding klout
+  score. Returns a [score error] vector. Score value is only meaningful if
+  error is nil."
+  [screen-name]
+  (let [id-resp @(http/get "http://api.klout.com/v2/identity.json/twitter"
+                           {:query-params {:screenName screen-name
+                                           :key (:klout-api-key env)}})]
+    (if-not (= (:status id-resp) 200)
+      [nil {:code :http-error 
+            :http-code (:status id-resp)
+            :reason (format "HTTP error %d in retrieving klout id"
+                      (:status id-resp))}]
+      (let [klout-id (-> id-resp :body (json/read-str :key-fn keyword) :id)
+            score-resp @(http/get
+                          (format "http://api.klout.com/v2/user.json/%s/score"
+                            klout-id)
+                          {:query-params {:key (:klout-api-key env)}})]
+        (if-not (= (:status score-resp) 200)
+          [nil {:code :http-error 
+                :http-code (:status id-resp)
+                :reason (format "HTTP error %d in retrieving klout score"
+                          (:status id-resp))}]
+          (-> score-resp :body (json/read-str :key-fn keyword) :score int))))))
+
 (defn maf-query
   "Queries myapifilms.com using params. Returns a delay of the first item in
   the parsed JSON response."

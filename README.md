@@ -24,10 +24,6 @@ the env map at runtime are:
 
 ## Development Notes
 
-- Film and actor tables have a `fetched` field. This is to defer calling our
-  data sources until we absoutely need to since most of them are really slow.
-  If the `fetched` field is not set then you can not use the data, you have to
-  pull it first.
 - Internally we use `actor` to mean a human of any gender who works on a film
   in any capacity. This includes actresses, directors, and writers. This may
   or may not be represented in front-end code or in apis we pull from. What a

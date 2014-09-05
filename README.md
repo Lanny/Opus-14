@@ -31,3 +31,7 @@ the env map at runtime are:
   given `actor` does on a project is indicated by their `role`. Roles are still
   gender neutral, i.e. both men and women appearing in a film are refered to as
   actors.
+- We need training data in order to classify the cause/genre of films based on
+  their plot descriptions. The project ships with a small data set in the 
+  resources directory and a script `pull_lists.py` that can be used to scape
+  these plot descriptions from IMDB and MAF.

@@ -3,7 +3,10 @@
   (:require
     (clojure [set :as sets]
              [string :as string])
+    (clojure.data [json :as json])
     [swiss.arrows :refer :all]))
+
+(def movie-classifier (atom nil))
 
 (def stop-words
   #{"" "a" "about" "above" "after" "again" "against" "all" "am" "an" "and"
@@ -85,7 +88,7 @@
   "Given a classifier, class(name), and a coll of features, return the
   probability that the object with those features is in that class"
   [classifier klass-name feature-set]
-  (let [klass (-> classifier :classes klass-name)
+  (let [klass (-> classifier :classes (get klass-name))
         pC (/ (:observations klass)           ; p that anything is in C before
               (:observations classifier))     ; evidence is examiled
 
@@ -121,3 +124,26 @@
        (into [])
        (sort-by second >)
        (first)))
+
+(defn get-movie-classifier
+  []
+  (let [classifier @movie-classifier]
+    (if-not (nil? classifier)
+      classifier
+      (let [training-data (-> "resources/training_data.json"
+                              slurp
+                              json/read-str)]
+        (swap! movie-classifier
+               (fn [_]
+                 (-<> training-data
+                      keys
+                      make-classifier
+                      (reduce (fn [accum1 [klass data]]
+                                (reduce (fn [accum2 datum]
+                                          (train accum2 klass
+                                                 (tokenize datum)))
+                                        accum1
+                                        data))
+                              <> ; empty classifier goes here
+                              training-data)
+                      (into {} <>))))))))

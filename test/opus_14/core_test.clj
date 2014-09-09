@@ -30,6 +30,12 @@
   (is (-> sent-classifier :classes :pos :observations pos?))
   (is (-> sent-classifier :classes :neg :observations pos?)))
 
+(deftest slurpage-test
+  (let [ccc (clsr/get-movie-classifier)]
+    (is ccc)
+    (is (map? ccc))))
+
+
 (deftest classification-test
   (->> #{"jesus" "is" "love"}
        (clsr/prob-dist sent-classifier)

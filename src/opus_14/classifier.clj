@@ -6,7 +6,23 @@
     (clojure.data [json :as json])
     [swiss.arrows :refer :all]))
 
-(def movie-classifier (atom nil))
+(def movie-classifier
+  (delay
+    (let [training-data (-> "resources/training_data.json"
+                            slurp
+                            json/read-str)]
+      (-<> training-data
+           keys
+           make-classifier
+           (reduce (fn [accum1 [klass data]]
+                     (reduce (fn [accum2 datum]
+                               (train accum2 klass
+                                      (tokenize datum)))
+                             accum1
+                             data))
+                   <> ; empty classifier goes here
+                   training-data)
+           (into {} <>)))))
 
 (def stop-words
   #{"" "a" "about" "above" "after" "again" "against" "all" "am" "an" "and"
@@ -127,23 +143,4 @@
 
 (defn get-movie-classifier
   []
-  (let [classifier @movie-classifier]
-    (if-not (nil? classifier)
-      classifier
-      (let [training-data (-> "resources/training_data.json"
-                              slurp
-                              json/read-str)]
-        (swap! movie-classifier
-               (fn [_]
-                 (-<> training-data
-                      keys
-                      make-classifier
-                      (reduce (fn [accum1 [klass data]]
-                                (reduce (fn [accum2 datum]
-                                          (train accum2 klass
-                                                 (tokenize datum)))
-                                        accum1
-                                        data))
-                              <> ; empty classifier goes here
-                              training-data)
-                      (into {} <>))))))))
+  )

@@ -11,6 +11,7 @@ keywords = [
     ('Poverty', 'poverty'),
     ('Environmental Issues', 'environment'),
     ('War/Anit-War', 'anti-war'),
+    ('Agriculture', 'agriculture'),
     ('Women\'s Rights', 'feminism'),
     ('Prison Reform', 'prison'),
     ('Healthcare', 'healthcare'),
@@ -24,7 +25,7 @@ if __name__ == "__main__":
         print 'Processing keyword: %s' % human_readable
 
         base_url = 'http://www.imdb.com/search/keyword'
-        min_data = 10
+        min_data = 120
         selector = CSSSelector('div.lister-item-image img.loadlate')
         imdb_ids = []
         req_map = {
@@ -39,6 +40,11 @@ if __name__ == "__main__":
 
             url = base_url + '?' + urllib.urlencode(req_map)
             res = urllib.urlopen(url)
+
+            if res.getcode() != 200:
+                print 'FAILED TO MEET QUOTA FOR: %s' % human_readable
+                break
+
             doc = lxml.html.parse(res)
             res.close()
 

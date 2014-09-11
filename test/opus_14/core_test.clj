@@ -32,7 +32,8 @@
 
 (deftest slurpage-test
   (is @clsr/movie-classifier)
-  (is (map? @clsr/movie-classifier)))
+  (is (map? @clsr/movie-classifier))
+  (println (clsr/benchmark-classifier "resources/training_data.json")))
 
 (deftest classification-test
   (->> #{"jesus" "is" "love"}

@@ -2,27 +2,38 @@
   "A simple naive bayes classifier and word based feature extractor."
   (:require
     (clojure [set :as sets]
-             [string :as string])
+             [string :as string]
+             [pprint :refer :all])
     (clojure.data [json :as json])
     [swiss.arrows :refer :all]))
 
+(declare train tokenize make-classifier)
+
+(defn pnr [a] (println a) a)
+
+(defn classifier-from-data
+  [training-data]
+   (-<> training-data
+        keys
+        make-classifier
+        (reduce (fn [accum1 [klass data]]
+                  (reduce (fn [accum2 datum]
+                            (train accum2 klass
+                                   (tokenize datum)))
+                          accum1
+                          data))
+                <> ; empty classifier goes here
+                training-data)
+        (into {} <>)))
+
 (def movie-classifier
   (delay
-    (let [training-data (-> "resources/training_data.json"
-                            slurp
-                            json/read-str)]
-      (-<> training-data
-           keys
-           make-classifier
-           (reduce (fn [accum1 [klass data]]
-                     (reduce (fn [accum2 datum]
-                               (train accum2 klass
-                                      (tokenize datum)))
-                             accum1
-                             data))
-                   <> ; empty classifier goes here
-                   training-data)
-           (into {} <>)))))
+    (->> "resources/training_data.json"
+         slurp
+         json/read-str
+         (map (fn [[k v]] [k (filter (comp not empty?) v)]))
+         (into {})
+         classifier-from-data)))
 
 (def stop-words
   #{"" "a" "about" "above" "after" "again" "against" "all" "am" "an" "and"
@@ -42,7 +53,8 @@
     "wasn't" "we" "we'd" "we'll" "we're" "we've" "were" "weren't" "what"
     "what's" "when" "when's" "where" "where's" "which" "while" "who" "who's"
     "whom" "why" "why's" "with" "won't" "would" "wouldn't" "you" "you'd"
-    "you'll" "you're" "you've" "your" "yours" "yourself" "yourselves"})
+    "you'll" "you're" "you've" "your" "yours" "yourself" "yourselves" "written"
+    "film" "documentary" "-" "anonymous" "also"})
 
 (defn normalize
   "Given a map m with all numeric values, return a map n where the sum of
@@ -64,7 +76,8 @@
         (string/split <> #"\s+")
         (map #(second (re-find #"^['\"]*(.+?)[.,?!'\"]*$" %)))
         (filter #(not (nil? %)))
-        (filter #(not (contains? stop-words %)))))
+        (filter #(not (contains? stop-words %)))
+        set))
 
 (defn make-classifier
   "Returns an untrained classifier with `klasses` as the potential classes"
@@ -98,19 +111,20 @@
   [klass]
   (fn [feature]
     (/ (inc (get-in klass [:features feature] 0))
-       (+ (:observations klass) (count (:features klass))))))
+       (Math/log (+ (:observations klass) 2)))))
 
 (defn pC|F
   "Given a classifier, class(name), and a coll of features, return the
   probability that the object with those features is in that class"
   [classifier klass-name feature-set]
   (let [klass (-> classifier :classes (get klass-name))
+        feature-set (sets/intersection (:features klass) feature-set)
         pC (/ (:observations klass)           ; p that anything is in C before
               (:observations classifier))     ; evidence is examiled
 
         pF|C (-<> (prob-of-X klass)           ; p of these features occuring
                   (map feature-set)           ; a member known to be in C
-                  (reduce * 1 <>))
+                  (reduce + 1 <>))
 
         pF (-<> (prob-of-X classifier)        ; p of these features occuring
                 (map feature-set)             ; at all
@@ -118,8 +132,8 @@
 
     ; ( prior * likelihood ) / evidence
     ; http://en.wikipedia.org/wiki/Naive_Bayes_classifier#Probabilistic_model
-    ; (println (format "klass: %s\n pC: %s\n pF|C: %s\n pF: %s"
-    ;                  klass-name pC pF|C pF))
+    ;(println (format "klass: %s\n pC: %f\n pF|C: %f\n pF: %f"
+    ;                 klass-name (Math/log pC) (Math/log pF|C) (Math/log pF)))
     (/ (* pC pF|C) pF)))
 
 (defn prob-dist
@@ -128,7 +142,7 @@
   of that class (per the NB model)"
   [classifier feature-set]
   (->> (keys (:classes classifier))
-       (map (fn [klass] [klass (float (pC|F classifier klass feature-set))]))
+       (map (fn [klass] [klass (double (pC|F classifier klass feature-set))]))
        (into {})
        (normalize)))
 
@@ -141,6 +155,40 @@
        (sort-by second >)
        (first)))
 
-(defn get-movie-classifier
-  []
-  )
+(defn benchmark-classifier
+  "Takes a file path (string) to training data (json in the format of:
+    {className: [exampleString1, exampleString2]}
+  ) and uses 80% of the data as training data and tests for correct
+  classification of the remaining 20%. Returns the percent correctly classified"
+  [data-source]
+  (let [data (->> data-source
+                  slurp
+                  json/read-str
+                  (map (fn [[k v]] [k (filter (comp not empty?) v)]))
+                  (into {}))
+        training-data (->> data
+                           (map (fn [[k v]]
+                                  [k (take (* (count (data k)) 4/5) v)]))
+                           (into {}))
+        testing-data (->> data
+                          (map (fn [[k v]]
+                                 [k (take (* (count (data k)) 1/5) v)]))
+                           (into {}))
+        csfr (classifier-from-data training-data)]
+    (-<>> testing-data
+          (map (fn [[klass examples]]
+                 (println (format "--- %s : %d" klass (count examples)))
+                 (map (fn [example]
+                        (if (->> example
+                                 tokenize
+                                 (most-likely-class @movie-classifier)
+                                 first
+                                 (= klass))
+                          1 0))
+                      examples)))
+          doall
+          pnr
+          (map #(/ (reduce + %) (count %)))
+          (reduce +)
+          (/ <> (count (keys testing-data)))
+          float)))

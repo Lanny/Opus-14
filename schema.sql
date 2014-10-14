@@ -41,8 +41,7 @@ CREATE TABLE films (
   extralinkage INTEGER,            -- Do partners link back to film?
   has_trailer INTEGER,
   runtime INTEGER,                 -- In minutes
-  ambigious_classification INTEGER,
-  alist_talent INTEGER,
+  ambiguous_classification INTEGER,
 
   -- And yo ole' score itself --
   score REAL

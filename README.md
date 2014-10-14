@@ -25,13 +25,101 @@ the env map at runtime are:
 
 ## Development Notes
 
-- Internally we use `actor` to mean a human of any gender who works on a film
-  in any capacity. This includes actresses, directors, and writers. This may
-  or may not be represented in front-end code or in apis we pull from. What a
-  given `actor` does on a project is indicated by their `role`. Roles are still
-  gender neutral, i.e. both men and women appearing in a film are refered to as
-  actors.
 - We need training data in order to classify the cause/genre of films based on
   their plot descriptions. The project ships with a small data set in the 
   resources directory and a script `pull_lists.py` that can be used to scape
   these plot descriptions from IMDB and MAF.
+
+## API Endpoints
+
+### `/index`
+**Description**: Data to be displayed on the home page of the app including
+news and a set of recently added films.
+
+**Method**: GET
+
+**Parameters**: None
+
+**Example response**:
+```json
+{
+  "news": "See our rankings for this year's <a href=\"/blaa\">Sundance Nominees</a>",
+  "films": [
+    {
+      "id": 42,
+      "title": "Miss Representation",
+      "score": 7.2,
+      "posterUrl": "http://ia.media-imdb.com/images/M/MV5BNTM5X640_SY720_.jpg"
+    },
+    ...
+  ]
+}
+```
+
+### `/search`
+**Descriprion**: List of films that match query criteria. One or both of 
+`q` and `category` must be specified.
+
+**Method**: GET
+
+**Parameters**:
+
+- `q`: A string compared against film titles
+- `category`: A category to filter results by. Valid values can be found in
+the `pull_list.py` file.
+- `order`: One of `year` or `score` deciding how the returned values should be
+sorted. Defaults to year.
+
+**Example response**:
+```json
+{
+  "q": "Representation",
+  "cagegory": null,
+  "order": "score",
+  "films": [
+    {
+      "id": 42,
+      "title": "Miss Representation",
+      "score": 7.2,
+      "category": "Women's Rights",
+      "year": 2009,
+      "posterUrl": "http://ia.media-imdb.com/images/M/MV5BNTM5X640_SY720_.jpg"
+    },
+    ...
+  ]
+}
+```
+
+### `/film`
+**Descriprion**: Detailed info about a film and its score.
+
+**Method**: GET
+
+**Parameters**:
+
+- `fid`: Opus internal ID of the film in question.
+
+**Example response**:
+```json
+{
+  "id": 42,
+  "title": "Miss Representation",
+  "category": "Women's Rights",
+  "year": 2009,
+  "posterUrl": "http://ia.media-imdb.com/images/M/MV5BNTM5X640_SY720_.jpg"
+  "score": 7.2,
+  "scoreComponents": {
+    "directorExperience": 0,
+    "firstTwitterResult": true,
+    "firstFacebookResult: true,
+    "kloutScore": 65,
+    "intraLinkage": true,
+    "extraLinkage": true,
+    "hasTrailer: true,
+    "runtime": 125,
+    "ambiguousClassification": false
+  }
+}
+```
+
+

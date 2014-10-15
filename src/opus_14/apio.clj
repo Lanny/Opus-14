@@ -13,11 +13,12 @@
   (:use environ.core))
 
 (def loid (keyword "last_insert_rowid()"))
-
+(def fb-access-token (str (:fb-app-id env) "|" (:fb-secret env)))
 (def tw-credentials 
   (apply oauth/make-oauth-creds ((juxt :tw-api-key :tw-api-secret
                                        :tw-access-token :tw-access-secret)
                                  env)))
+
 
 ;(def kek (twitter-rest/users-search :oauth-creds tw-credentials
 ;                               :params {:q "Miss Representation"}))
@@ -94,6 +95,44 @@
                 :ex-link ex-link}
                nil] ; We golang now
               ))))))
+
+(defn url->ogid*
+  "Returns a derefable to the open graph id of eurl. OGIDs are \\d+ strings."
+  [eurl]
+  (http/get "https://graph.facebook.com/v2.1/"
+            {:query-params {:id eurl
+                            :access_token fb-access-token}}
+            #(-> %1
+                 :body
+                 (json/read-str :key-fn keyword)
+                 :id)))
+
+(defn url->ogid
+  "Returns the open graph id of eurl. OGIDs are \\d+ strings."
+  [eurl]
+  @(url->ogid* eurl))
+
+(defn fb-search*
+  ""
+  ([q]
+   (fb-search* q "page"))
+  ([q result-type]
+    (http/get "https://graph.facebook.com/v2.1/search"
+              {:query-params {:q q
+                              :type result-type
+                              :access_token fb-access-token}}
+            #(-> %1
+                 :body
+                 (json/read-str :key-fn keyword)))))
+
+(defn first-facebook-result?
+  "Takes the url of a facebook page and returns true if it's the first result
+  in facebook's relevance search for search-term."
+  [fb-url search-term]
+  (let [ogid (url->ogid* fb-url)
+        search-results (fb-search* search-term)]
+    (= @ogid
+       (-> search-results deref :data first :id))))
 
 (defn first-twitter-result?
   "Returns true if the twitter screen name given is the first relevance search 

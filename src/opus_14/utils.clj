@@ -1,6 +1,7 @@
 (ns opus-14.utils
   (:require
-    (clojure [string :as string])
+    (clojure [string :as string]
+             [pprint :as pprint])
     [swiss.arrows :refer :all]))
 
 (defn parse-int [value]
@@ -9,6 +10,13 @@
   (try
     (Integer/parseInt value)
     (catch NumberFormatException e nil)))
+
+(defn pnr
+  "Print 'n Return. Prints its single arg and returns it. Useful for
+  understanding arrow chains"
+  [x]
+  (pprint/pprint x)
+  x)
 
 (defn field-to-field
   "Takes a base map and a 'f2f-map' which describes a transformation on the

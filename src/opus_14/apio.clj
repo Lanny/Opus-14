@@ -1,6 +1,7 @@
 (ns opus-14.apio
   (:require
-    (clojure [pprint :as pprint])
+    (clojure [pprint :as pprint]
+             [set :as sets])
     (clojure.data [json :as json])
     [org.httpkit.client :as http]
     (korma [core :as k])
@@ -8,9 +9,12 @@
     (twitter.api [restful :as twitter-rest])
     (cemerick [url :refer (url)])
     (net.cgrand [enlive-html :as enlive])
+    (swiss [arrows :refer :all])
     (opus-14 [entities :as e]
              [utils :as utils]))
   (:use environ.core))
+
+(defn pnr [x] (pprint/pprint x) x)
 
 (def loid (keyword "last_insert_rowid()"))
 (def fb-access-token (str (:fb-app-id env) "|" (:fb-secret env)))
@@ -271,8 +275,106 @@
                        :role (:role actor)})))))
     film-id))
 
+(defn get-urls*
+  [page-url]
+  (let [internal? #(apply = (map (comp utils/domain-of url) [page-url %]))]
+    (http/get page-url {}
+              (fn [{:keys [headers body]}]
+                (if-not (or (nil? (:content-type headers))
+                            (re-matches #"^text/html.*" (:content-type headers)))
+                  ; Well shoot, not even a document
+                  ['() '()]
+                  (-<> body
+                       (enlive/html-snippet)
+                       (enlive/select [[:a (enlive/attr? :href)]])
+                       (map (comp str
+                                  (partial utils/make-absolute page-url)
+                                  :href
+                                  :attrs) <>)
+                       (group-by internal? <>)
+                       ((juxt #(get % true) #(get % false)) <>)))))))
 
-;(first-time-director? "Jennifer Siebel Newsom")
+(defn get-urls
+  "Returns a sequence of urls pointed to by hyperlinks at page-url."
+  [page-url]
+  @(apply get-urls* args))
+
+(defn item-wise-vector-concat
+  "=>(item-wise-vector-concat [[1 2] [3]] [[4] [5 6]])
+  [[1 2 4] [3 5 6]]"
+  ([] [])
+  ([v1] v1)
+  ([v1 v2]
+   (vec (map concat v1 v2))))
+
+(defn find-outbound-links*
+  ""
+  [to-visit depth max-depth visited]
+  (let [[internal external] (->> to-visit
+                                 (map get-urls*)
+                                 ; force generation but not realization
+                                 ; of promises so we load in parallel
+                                 (doall)
+                                 (map deref)
+                                 (reduce item-wise-vector-concat))]
+    (if (< depth max-depth)
+      (let [new-visited (sets/union visited (set to-visit))
+            new-to-visit (-<>> internal
+                               (map utils/normalize-url)
+                               (filter utils/suspected-document?)
+                               (map str)
+                               (set)
+                               (sets/difference <> new-visited)
+                               (take 20))
+            [new-int new-ext] (item-wise-vector-concat
+                                (find-outbound-links* new-to-visit
+                                                      (inc depth)
+                                                      max-depth
+                                                      new-visited)
+                                [internal external])]
+        [new-int new-ext])
+      [internal external])))
+
+(defn find-outbound-links
+  ""
+  ([start-page]
+   (find-outbound-links start-page 3))
+  ([start-page max-depth]
+   (-<> [start-page]
+        (find-outbound-links* 0 max-depth #{})
+        (second)
+        (map utils/normalize-url <>)
+        (map str <>)
+        (set)
+        (seq))))
+
+(defn reciprocal-linkers
+  "Given a URL initiates a crawl at that url and records outbound links. Then
+  crawls each outbound link. Returns a seq of domains the given URL links to
+  and which link back to it's domain. Makes a shit-ton of requests and while we
+  try to do them in parallel it still takes 4eva to run on normal sites."
+  [base-url]
+  (let [base-domain (utils/domain-of base-url)]
+    (->> base-url
+         find-outbound-links
+         (map #(-> % url (assoc :path "/") str))
+         pnr
+         (set)
+         (seq)
+         (take 30) ; Doing more than 30 of this will swamp us for sure
+
+         ; This solution isn't ideal. For best performance we need to fire off
+         ; all the `find-outbound-links` tasks at the same time but they're
+         ; going to hit IO sleep pretty quick and we're left with as many as
+         ; 30 threads waiting.
+         (map #(future (vector % (find-outbound-links %))))
+         (doall)
+         (map deref)
+         (filter #(->> %
+                       (second)
+                       (some (fn [eurl] (= (utils/domain-of eurl)
+                                           base-domain)))))
+         (map (comp utils/domain-of first)))))
 
 (defn -main
   "I don't do a whole lot ... yet."

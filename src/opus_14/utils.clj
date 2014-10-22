@@ -2,7 +2,9 @@
   (:require
     (clojure [string :as string]
              [pprint :as pprint])
-    [swiss.arrows :refer :all]))
+    (cemerick [url :refer (url)])
+    [swiss.arrows :refer :all])
+  (:import [java.net MalformedURLException]))
 
 (defn parse-int [value]
   "Returns the integer represented in base 10 as a string argument, or nil if
@@ -37,12 +39,23 @@
 (defn domain-of
   "Takes a cemerick url object and return the first and second level domains.
   (domain-of (url \"www.github.com\")) => \"github.com\""
-  [cemerick-url]
-  (-<>> cemerick-url
+  [eurl]
+  (-<>> eurl
+        url
         :host
         (string/split <> #"\.")
         (take-last 2)
         (string/join ".")))
+
+(defn make-absolute
+  "Takes a base url and a potentially relative url found at the first url.
+  Returns the absolute representation of the second url."
+  [base-url rel-url]
+  (try
+    (url rel-url)
+    (catch MalformedURLException e
+      (url base-url rel-url))))
+
 
 (defn first-with-content
   "Takes a sequence of enlive stlye XML nodes and returns the first where the
@@ -54,3 +67,25 @@
         (and (= (count (:content node)) 1)
              (= (first (:content node)) content)))
       enlive-coll)))
+
+(defn suspected-document?
+  "Takes a url and returns false if it seems likely to point to something other
+  than an HTML page (e.x. the url ends in .jpg). true otherwise."
+  [eurl]
+  (let [working-url (url eurl)]
+    (cond
+      (and (not= (:protocol working-url) "http")
+           (not= (:protocol working-url) "https"))
+        false
+      (re-matches #"^.*\.(jpeg|jpg|png|gif|css|js)$" (:path working-url))
+        false
+      :else
+        true)))
+
+(defn normalize-url
+  [eurl]
+  (let [working-url (url eurl)]
+    (merge working-url
+           {:protocol (if (= (:protocol working-url) "https")
+                        "http" (:protocol working-url)) 
+            :anchor nil})))

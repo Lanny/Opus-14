@@ -16,4 +16,5 @@
   :plugins [[lein-environ "0.5.0"]]
   :main ^:skip-aot opus-14.core
   :target-path "target/%s"
+  :jvm-opts ["-Xmx1g"]
   :profiles {:uberjar {:aot :all}})

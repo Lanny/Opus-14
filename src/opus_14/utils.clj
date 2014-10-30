@@ -36,26 +36,42 @@
             [dest-key v]
             nil))))))
 
+(defn safe-url
+  "Tries to make a cemerick url out of eurl, returns nil if eurl is malformed."
+  [eurl]
+  (try
+    (url eurl)
+    (catch MalformedURLException e
+      nil)))
+
+
 (defn domain-of
   "Takes a cemerick url object and return the first and second level domains.
   (domain-of (url \"www.github.com\")) => \"github.com\""
   [eurl]
-  (-<>> eurl
-        url
-        :host
-        (string/split <> #"\.")
-        (take-last 2)
-        (string/join ".")))
+  (try
+    (-<>> eurl
+          url
+          :host
+          (string/split <> #"\.")
+          (take-last 2)
+          (string/join "."))
+    (catch MalformedURLException e
+      nil)))
 
 (defn make-absolute
   "Takes a base url and a potentially relative url found at the first url.
   Returns the absolute representation of the second url."
   [base-url rel-url]
+  (if (or (not= (type base-url) String)
+          (not= (type base-url) String))
+    (println "HALOOO" base-url rel-url))
   (try
     (url rel-url)
     (catch MalformedURLException e
-      (url base-url rel-url))))
-
+      (url base-url rel-url))
+    (catch Exception e
+      nil)))
 
 (defn first-with-content
   "Takes a sequence of enlive stlye XML nodes and returns the first where the
@@ -89,3 +105,19 @@
            {:protocol (if (= (:protocol working-url) "https")
                         "http" (:protocol working-url)) 
             :anchor nil})))
+
+(defn unique-under-fn
+  "Returns the first values of coll where no previous value under f are equal:
+  user> (unique-under-fn [1 2 3 4 5 6 7] even?)
+  (2 1)"
+  [f coll]
+  (loop [unique-domain '()
+         unique-range #{}
+         [x & xs] coll]
+    (let [f-of-x (f x)
+          unique (not (contains? unique-range f-of-x))
+          unique-domain (if unique (conj unique-domain x) unique-domain)
+          unique-range (if unique (conj unique-range f-of-x) unique-range)]
+      (if (seq? xs)
+        (recur unique-domain unique-range xs)
+        unique-domain))))

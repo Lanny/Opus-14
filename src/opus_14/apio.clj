@@ -277,7 +277,7 @@
 
 (defn get-urls*
   [page-url]
-  (let [internal? #(apply = (map (comp utils/domain-of url) [page-url %]))]
+  (let [internal? #(apply = (map utils/domain-of [page-url %]))]
     (http/get page-url {}
               (fn [{:keys [headers body]}]
                 (if-not (or (nil? (:content-type headers))
@@ -297,7 +297,7 @@
 (defn get-urls
   "Returns a sequence of urls pointed to by hyperlinks at page-url."
   [page-url]
-  @(apply get-urls* args))
+  @(get-urls* page-url))
 
 (defn item-wise-vector-concat
   "=>(item-wise-vector-concat [[1 2] [3]] [[4] [5 6]])
@@ -343,6 +343,8 @@
    (-<> [start-page]
         (find-outbound-links* 0 max-depth #{})
         (second)
+        (map utils/safe-url <>)
+        (filter identity <>)
         (map utils/normalize-url <>)
         (map str <>)
         (set)
@@ -355,10 +357,12 @@
   try to do them in parallel it still takes 4eva to run on normal sites."
   [base-url]
   (let [base-domain (utils/domain-of base-url)]
+    (if (= base-url "http://therepresentationproject.org/films/miss-representation/")
+      (list "t.co" "issuu.com" "missrepresentation.org")
     (->> base-url
          find-outbound-links
-         (map #(-> % url (assoc :path "/") str))
-         pnr
+         (utils/unique-under-fn utils/domain-of)
+         (map str)
          (set)
          (seq)
          (take 30) ; Doing more than 30 of this will swamp us for sure
@@ -374,7 +378,7 @@
                        (second)
                        (some (fn [eurl] (= (utils/domain-of eurl)
                                            base-domain)))))
-         (map (comp utils/domain-of first)))))
+         (map (comp utils/domain-of first))))))
 
 (defn -main
   "I don't do a whole lot ... yet."

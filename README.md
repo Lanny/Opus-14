@@ -115,7 +115,7 @@ sorted. Defaults to year.
     "kloutScore": 65,
     "intraLinkage": true,
     "extraLinkage": true,
-    "hasTrailer: true,
+    "hasTrailer": true,
     "runtime": 125,
     "ambiguousClassification": false
   }

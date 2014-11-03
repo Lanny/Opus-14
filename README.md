@@ -106,12 +106,12 @@ sorted. Defaults to year.
   "title": "Miss Representation",
   "category": "Women's Rights",
   "year": 2009,
-  "posterUrl": "http://ia.media-imdb.com/images/M/MV5BNTM5X640_SY720_.jpg"
+  "posterUrl": "http://ia.media-imdb.com/images/M/MV5BNTM5X640_SY720_.jpg",
   "score": 7.2,
   "scoreComponents": {
     "directorExperience": 0,
     "firstTwitterResult": true,
-    "firstFacebookResult: true,
+    "firstFacebookResult": true,
     "kloutScore": 65,
     "intraLinkage": true,
     "extraLinkage": true,
